@@ -8,12 +8,21 @@ library(lubridate)
 library(bslib)
 
 # Load your data
-journeys <- read_csv("data/victoria-line-data.csv") %>%
+journeys <- read_csv("data/victoria-line-data-2025-wrapped.csv") %>%
   clean_names() |> 
   mutate(
     journey_time = dmy_hm(what_time_did_you_get_on_the_tube),
     date = as_date(journey_time),
     time = format(journey_time, "%H:%M")
+  ) |> 
+  distinct(
+    journey_time,
+    who_are_you,
+    boarding_station,
+    destination_station,
+    direction,
+    carriage_number,
+    .keep_all = TRUE
   ) |> 
   mutate(
     who_are_you = factor(who_are_you),
@@ -42,12 +51,21 @@ styled_text <- function(label, value, colour="#039BE5") {
 ui <- fluidPage(
   theme = bs_theme(bootswatch = "flatly", primary = tfl_colours["victoria"]),
   
-  titlePanel(div("Victoria Line Wrapped 🚇", 
+  titlePanel(div("Victoria Line Wrapped 2025 🚇", 
                  style = paste0("color:", tfl_colours["victoria"], 
                                 "; font-weight:bold; font-size:2em;"))),
   
-  selectInput("who", "Select traveller:", choices = unique(journeys$who_are_you)),
+  selectInput(
+    "who",
+    "Traveller:",
+    choices = unique(journeys$who_are_you),
+    selected = unique(journeys$who_are_you)[1]
+  ),
   br(),
+  
+  # ---- Hero stats ----
+  uiOutput("hero_stats"),
+  br(), br(),
   
   # Core stats
   uiOutput("total_journeys_text"),
@@ -98,6 +116,56 @@ server <- function(input, output, session) {
   filtered <- reactive({
     journeys %>% filter(who_are_you == input$who)
   })
+  
+  # ---- Headline stats ----
+  output$hero_stats <- renderUI({
+    
+    d <- filtered()
+    
+    total_journeys <- nrow(d)
+    
+    carriage_stats <- d %>%
+      filter(!is.na(carriage_number)) %>%
+      count(carriage_number, sort = TRUE)
+    
+    n_carriages <- nrow(carriage_stats)
+    pct_carriages <- round(100 * n_carriages / 394, 1)
+    
+    top_carriage <- carriage_stats %>% slice(1)
+    
+    HTML(paste0(
+      "<div style='
+      border-radius:20px;
+      padding:25px;
+      background:linear-gradient(135deg, #039BE5, #0288D1);
+      color:white;
+      text-align:center;
+      margin-bottom:20px;
+    '>",
+      
+      "<div style='font-size:2.5em; font-weight:bold;'>",
+      total_journeys,
+      "</div>",
+      "<div style='opacity:0.9; margin-bottom:15px;'>Journeys logged</div>",
+      
+      "<div style='font-size:2em; font-weight:bold;'>",
+      n_carriages,
+      "</div>",
+      "<div style='opacity:0.9; margin-bottom:15px;'>",
+      "Different carriages ridden (", pct_carriages, "% of all 394)",
+      "</div>",
+      
+      "<div style='font-size:2em; font-weight:bold;'>",
+      top_carriage$carriage_number,
+      "</div>",
+      "<div style='opacity:0.9;'>",
+      "Most ridden carriage (", top_carriage$n, " journeys)",
+      "</div>",
+      
+      "</div>"
+    ))
+  })
+  
   
   # ---- Core stats ----
   output$total_journeys_text <- renderUI({
