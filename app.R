@@ -80,7 +80,7 @@ ui <- fluidPage(
   
   # ---- Hero stats ----
   uiOutput("hero_stats"),
-  br(), br(),
+  br(),
   
   # Core stats
   uiOutput("total_journeys_text"),
@@ -100,8 +100,8 @@ ui <- fluidPage(
   br(),
   
   # Fun extras
-  h3("Fun Extras 🎉", style=paste0("color:", tfl_colours["victoria"], ";")),
-  br(),
+  #h3("Fun Extras 🎉", style=paste0("color:", tfl_colours["victoria"], ";")),
+  #br(),
   
   uiOutput("seat_text"),
   plotlyOutput("seat_position"),
@@ -120,13 +120,28 @@ ui <- fluidPage(
   uiOutput("depot_count"),
   
   br(), br(),
-  div("See you down the line 👋", 
+  div("See you on the line 👋", 
       style=paste0("font-size:1.5em; font-weight:bold; color:", 
                    tfl_colours["victoria"], "; text-align:center; margin:40px;"))
 )
 
 # ---- Server ----
 server <- function(input, output, session) {
+  
+  # Function to make it easier to use on the phone:
+  
+  plotly_mobile_safe <- function(p) {
+    p %>%
+      layout(
+        dragmode = FALSE
+      ) %>%
+      config(
+        staticPlot = FALSE,
+        scrollZoom = FALSE,
+        displayModeBar = FALSE,
+        doubleClick = FALSE
+      )
+  }
   
   filtered <- reactive({
     journeys %>% filter(who_are_you == input$who)
@@ -144,7 +159,7 @@ server <- function(input, output, session) {
       count(carriage_number, sort = TRUE)
     
     n_carriages <- nrow(carriage_stats)
-    pct_carriages <- round(100 * n_carriages / 394, 1)
+    pct_carriages <- round(100 * n_carriages / 394, 0)
     
     top_carriage <- carriage_stats %>% slice(1)
     
@@ -174,7 +189,7 @@ server <- function(input, output, session) {
       top_carriage$carriage_number,
       "</div>",
       "<div style='opacity:0.9;'>",
-      "Most ridden carriage number (", top_carriage$n, " journeys)",
+      "Most used carriage number (", top_carriage$n, " journeys)",
       "</div>",
       
       "</div>"
@@ -190,10 +205,25 @@ server <- function(input, output, session) {
   
   output$journeys_over_time <- renderPlotly({
     filtered() %>%
-      count(date) %>%
-      plot_ly(x=~date, y=~n, type="bar", marker=list(color=tfl_colours["victoria"])) %>%
-      layout(title="Journeys per day")
+      mutate(week = floor_date(date, unit = "week", week_start = 1)) %>%  # Monday start
+      count(week) %>%
+      plot_ly(
+        x = ~week,
+        y = ~n,
+        type = "bar",
+        marker = list(color = tfl_colours["victoria"])
+      ) %>%
+      layout(
+        title = "Journeys per week",
+        xaxis = list(title = "Week starting"), 
+        yaxis = list(
+          title = ""
+        ), 
+        margin = list(l = 0, r = 10, t = 40, b = 20)
+      ) %>%
+      plotly_mobile_safe()
   })
+  
   
   output$popular_day_text <- renderUI({
     topday <- filtered() %>%
@@ -207,7 +237,14 @@ server <- function(input, output, session) {
       mutate(weekday = wday(date, label=TRUE)) %>%
       count(weekday) %>%
       plot_ly(x=~weekday, y=~n, type="bar", marker=list(color=tfl_colours["circle"])) %>%
-      layout(title="Journeys by weekday")
+      layout(title="Journeys by weekday",
+             xaxis = list(title = "Weekday"), 
+             yaxis = list(
+               title = ""
+             ), 
+             margin = list(l = 0, r = 10, t = 40, b = 20)
+             ) %>%
+      plotly_mobile_safe()
   })
   
   output$popular_hour_text <- renderUI({
@@ -222,7 +259,14 @@ server <- function(input, output, session) {
       mutate(hour = hour(journey_time)) %>%
       count(hour) %>%
       plot_ly(x=~hour, y=~n, type="bar", marker=list(color=tfl_colours["central"])) %>%
-      layout(title="Journeys by time of day", xaxis=list(dtick=1))
+      layout(title="Journeys by time of day", 
+             xaxis=list(dtick=1, title = "Hour"), 
+             yaxis = list(
+               title = ""
+             ), 
+             margin = list(l = 0, r = 10, t = 40, b = 20)
+             ) %>%
+      plotly_mobile_safe()
   })
   
   output$station_text <- renderUI({
@@ -239,7 +283,14 @@ server <- function(input, output, session) {
       top_n(10) %>%
       plot_ly(x=~n, y=~reorder(boarding_station, n), type="bar",
               orientation="h", marker=list(color=tfl_colours["jubilee"])) %>%
-      layout(title="Most common boarding stations", xaxis=list(title="Journeys"), yaxis=list(title=""))
+      layout(title="Most common boarding stations", 
+             xaxis=list(title="Journeys"), 
+             yaxis = list(
+               title = ""
+             ), 
+             margin = list(l = 0, r = 10, t = 40, b = 20)
+             ) %>%
+      plotly_mobile_safe()
   })
   
   # ---- Fun extras ----
@@ -251,7 +302,14 @@ server <- function(input, output, session) {
     filtered() %>%
       count(where_on_the_train) %>%
       plot_ly(x=~where_on_the_train, y=~n, type="bar", marker=list(color=tfl_colours["victoria"])) %>%
-      layout(title="Seat position (carriage sections)")
+      layout(title="Carriage Position (Front to Back)",
+             xaxis = list(title = "Carriage"),
+             yaxis = list(
+               title = ""
+             ), 
+             margin = list(l = 0, r = 10, t = 40, b = 20)
+             ) %>%
+      plotly_mobile_safe()
   })
   
   output$busy_text <- renderUI({
@@ -262,7 +320,14 @@ server <- function(input, output, session) {
     filtered() %>%
       count(how_busy) %>%
       plot_ly(x=~how_busy, y=~n, type="bar", marker=list(color=tfl_colours["central"])) %>%
-      layout(title="Crowding experience")
+      layout(title="Crowding experience",
+             xaxis = list(title = "Busy-ness"), 
+             yaxis = list(
+               title = ""
+             ), 
+             margin = list(l = 0, r = 10, t = 40, b = 20)
+             ) %>%
+      plotly_mobile_safe()
   })
   
   output$streak_text <- renderUI({
