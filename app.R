@@ -49,9 +49,24 @@ styled_text <- function(label, value, colour="#039BE5") {
 
 # ---- UI ----
 ui <- fluidPage(
+  tags$head(
+    tags$title("Victoria Line Wrapped 2025 🚇"),
+    tags$meta(
+      name = "description",
+      content = "My personal Victoria Line Wrapped for 2025 — journeys, carriages, stations and fun tube stats."
+    ),
+    
+    # Optional but recommended for sharing
+    tags$meta(property = "og:title", content = "Victoria Line Wrapped 2025 🚇"),
+    tags$meta(
+      property = "og:description",
+      content = "A year of Victoria line journeys, carriages ridden and tube stats."
+    )
+  ),
+  
   theme = bs_theme(bootswatch = "flatly", primary = tfl_colours["victoria"]),
   
-  titlePanel(div("Victoria Line Wrapped 2025 🚇", 
+  titlePanel(div("Victoria Line Wrapped 🚇", 
                  style = paste0("color:", tfl_colours["victoria"], 
                                 "; font-weight:bold; font-size:2em;"))),
   
@@ -159,7 +174,7 @@ server <- function(input, output, session) {
       top_carriage$carriage_number,
       "</div>",
       "<div style='opacity:0.9;'>",
-      "Most ridden carriage (", top_carriage$n, " journeys)",
+      "Most ridden carriage number (", top_carriage$n, " journeys)",
       "</div>",
       
       "</div>"
